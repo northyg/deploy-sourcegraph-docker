@@ -1,7 +1,7 @@
 ---
 remote_write:
 - url: https://metric-api.newrelic.com/prometheus/v1/write?prometheus_server=prometheus-sourcegraph
-  bearer_token: b8497fcffe49ddaee87dd8caf5928fe60feab680
+  bearer_token: 
   
 - labels:
     job: node
