@@ -11,6 +11,23 @@ services:
   #
   # If you're using a DB instance hosted outside of docker-compose, the environment variables
   # for this container will need to be updated to reflect the new connection information.
+
+
+  agent:
+    container_name: newrelic-infra
+    build:
+      context: .
+      dockerfile: newrelic-infra.dockerfile
+    cap_add:
+      - SYS_PTRACE
+    network_mode: host
+    pid: host
+    privileged: true
+    volumes:
+      - "/:/host:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    restart: unless-stopped
+
   migrator:
     container_name: migrator
     image: 'index.docker.io/sourcegraph/migrator:3.37.0@sha256:404df69cfee90eaa9a3ab8b540a2d9affd22605caa5326a8ac4ba016e1d6d815'
@@ -19,6 +36,7 @@ services:
     command:
       ["up"]
     environment:
+      - NRIA_CUSTOM_ATTRIBUTES=migrator
       - PGHOST=pgsql
       - PGPORT=5432
       - PGUSER=sg
@@ -72,6 +90,7 @@ services:
     cpus: 4
     mem_limit: '4g'
     environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=caddy'
       - 'XDG_DATA_HOME=/caddy-storage/data'
       - 'XDG_CONFIG_HOME=/caddy-storage/config'
       - 'SRC_FRONTEND_ADDRESSES=sourcegraph-frontend-0:3080'
@@ -124,6 +143,7 @@ services:
     cpus: 4
     mem_limit: '8g'
     environment:
+      - NRIA_CUSTOM_ATTRIBUTES=frontend-0-nr
       - DEPLOY_TYPE=docker-compose
       - JAEGER_AGENT_HOST=jaeger
       - PGHOST=pgsql
@@ -167,6 +187,7 @@ services:
     cpus: 4
     mem_limit: '8g'
     environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=frontend-internal'
       - DEPLOY_TYPE=docker-compose
       - PGHOST=pgsql
       - CODEINTEL_PGHOST=codeintel-db
@@ -213,6 +234,7 @@ services:
     environment:
       - 'SRC_FRONTEND_INTERNAL=sourcegraph-frontend-internal:3090'
       - JAEGER_AGENT_HOST=jaeger
+      - 'NRIA_CUSTOM_ATTRIBUTES=gitserver-0'
     volumes:
       - 'gitserver-0:/data/repos'
     networks:
@@ -236,6 +258,7 @@ services:
     environment:
       - 'HOSTNAME=zoekt-webserver-0:6070'
       - 'SRC_FRONTEND_INTERNAL=http://sourcegraph-frontend-internal:3090'
+      - 'NRIA_CUSTOM_ATTRIBUTES=zoekt-indexserver-0'
     volumes:
       - 'zoekt-0-shared:/data/index'
     networks:
@@ -256,6 +279,7 @@ services:
     mem_limit: '50g'
     environment:
       - 'HOSTNAME=zoekt-webserver-0:6070'
+      - 'NRIA_CUSTOM_ATTRIBUTES=zoekt-webserver-0'
     healthcheck:
       test: "wget -q 'http://127.0.0.1:6070/healthz' -O /dev/null || exit 1"
       interval: 5s
@@ -280,6 +304,7 @@ services:
     cpus: 2
     mem_limit: '2g'
     environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=searcher-0'
       - 'SRC_FRONTEND_INTERNAL=sourcegraph-frontend-internal:3090'
       - JAEGER_AGENT_HOST=jaeger
     healthcheck:
@@ -309,6 +334,7 @@ services:
     environment:
       - 'SRC_FRONTEND_INTERNAL=sourcegraph-frontend-internal:3090'
       - JAEGER_AGENT_HOST=jaeger
+      - 'NRIA_CUSTOM_ATTRIBUTES=github-proxy'
     networks:
       - sourcegraph
     restart: always
@@ -326,6 +352,7 @@ services:
     environment:
       - 'SRC_FRONTEND_INTERNAL=sourcegraph-frontend-internal:3090'
       - JAEGER_AGENT_HOST=jaeger
+      - 'NRIA_CUSTOM_ATTRIBUTES=precise-code-intel-worker'
     healthcheck:
       test: "wget -q 'http://127.0.0.1:3188/healthz' -O /dev/null || exit 1"
       interval: 5s
@@ -351,6 +378,7 @@ services:
       - 'SRC_FRONTEND_INTERNAL=sourcegraph-frontend-internal:3090'
       - JAEGER_AGENT_HOST=jaeger
       - 'GITHUB_BASE_URL=http://github-proxy:3180'
+      - 'NRIA_CUSTOM_ATTRIBUTES=repo-updater'
     volumes:
       - 'repo-updater:/mnt/cache'
     networks:
@@ -371,6 +399,7 @@ services:
     environment:
       - 'SRC_FRONTEND_INTERNAL=sourcegraph-frontend-internal:3090'
       - JAEGER_AGENT_HOST=jaeger
+      - 'NRIA_CUSTOM_ATTRIBUTES=worker'
     volumes:
       - 'worker:/mnt/cache'
     networks:
@@ -388,6 +417,8 @@ services:
     image: 'index.docker.io/sourcegraph/syntax-highlighter:3.37.0@sha256:4c371a925ce1b97f2ec7f44c582795409c0b19d073a41c7123b07be06e2ebd47'
     cpus: 4
     mem_limit: '6g'
+    environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=syntect-server'
     healthcheck:
       test: "wget -q 'http://127.0.0.1:9238/health' -O /dev/null || exit 1"
       interval: 5s
@@ -412,6 +443,7 @@ services:
     environment:
       - 'SRC_FRONTEND_INTERNAL=sourcegraph-frontend-internal:3090'
       - JAEGER_AGENT_HOST=jaeger
+      - 'NRIA_CUSTOM_ATTRIBUTES=symbols-0'
     healthcheck:
       test: "wget -q 'http://127.0.0.1:3184/healthz' -O /dev/null || exit 1"
       interval: 5s
@@ -445,6 +477,7 @@ services:
     restart: always
     environment:
       - 'SRC_FRONTEND_INTERNAL=sourcegraph-frontend-internal:3090'
+      - 'NRIA_CUSTOM_ATTRIBUTES=prometheus'
 
   # Description: Dashboards and graphs for Prometheus metrics.
   #
@@ -470,6 +503,8 @@ services:
       - '0.0.0.0:3370:3370'
     networks:
       - sourcegraph
+    environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=grafana'
     restart: always
 
   # Description: Publishes Prometheus metrics about Docker containers.
@@ -483,6 +518,8 @@ services:
     image: 'index.docker.io/sourcegraph/cadvisor:3.37.0@sha256:7b0c6953e54746c16f63bcd9029d8bb52e348cd3921261694696eb66b28daf76'
     cpus: 1
     mem_limit: '1g'
+    environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=cadvisor'
     volumes:
       - '/:/rootfs:ro'
       - '/var/run:/var/run:ro'
@@ -524,6 +561,7 @@ services:
     restart: always
     command: ['--memory.max-traces=20000']
     environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=jaeger'
       - 'SAMPLING_STRATEGIES_FILE=/etc/jaeger/sampling_strategies.json'
 
   # Description: PostgreSQL database for various data.
@@ -537,6 +575,8 @@ services:
     image: 'index.docker.io/sourcegraph/postgres-12.6-alpine:3.37.0@sha256:af00a4465f435742df9980cc9d8a8bda49d6adea173558a371e276b476ea94ae'
     cpus: 4
     mem_limit: '2g'
+    environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=pgsql'
     healthcheck:
       test: '/liveness.sh'
       interval: 10s
@@ -562,6 +602,8 @@ services:
     image: 'index.docker.io/sourcegraph/codeintel-db:3.37.0@sha256:fc2ab91482f85f77eb73c69a35a2a4cc5055a1b93ef1c1d0f183a7003e632082'
     cpus: 4
     mem_limit: '2g'
+    environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=codeintel-db'
     healthcheck:
       test: '/liveness.sh'
       interval: 10s
@@ -592,6 +634,7 @@ services:
     cpus: 4
     mem_limit: '2g'
     environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=codeinsights-db'
       - POSTGRES_PASSWORD=password
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
@@ -614,6 +657,7 @@ services:
     cpus: 1
     mem_limit: '1g'
     environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=minio'
       - 'MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE'
       - 'MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
     healthcheck:
@@ -640,6 +684,8 @@ services:
     image: 'index.docker.io/sourcegraph/redis-cache:3.37.0@sha256:ff28c3902b0ba142e3409e3bb905913aaabc821e7efdaa43458ea3bbe65b7e16'
     cpus: 1
     mem_limit: '7g'
+    environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=redis-cache'
     volumes:
       - 'redis-cache:/redis-data'
     networks:
@@ -656,6 +702,8 @@ services:
     image: 'index.docker.io/sourcegraph/redis-store:3.37.0@sha256:e1cfaeb18367d76838fec0e5f52e2c7d85f2fb63537a3fe809014a986393c9c7'
     cpus: 1
     mem_limit: '7g'
+    environment:
+      - 'NRIA_CUSTOM_ATTRIBUTES=redis-store'
     volumes:
       - 'redis-store:/redis-data'
     networks:
@@ -663,6 +711,7 @@ services:
     restart: always
 
 volumes:
+  agent:
   caddy:
   gitserver-0:
   grafana:

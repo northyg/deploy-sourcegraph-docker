@@ -6,9 +6,9 @@ datasources:
     access: proxy
     url: http://prometheus:9090
     isDefault: true
-    editable: false
+    editable: true
   - name: Jaeger
     type: Jaeger
     access: proxy
     url: http://jaeger-query:16686/-/debug/jaeger
-    editable: false
+    editable: true
